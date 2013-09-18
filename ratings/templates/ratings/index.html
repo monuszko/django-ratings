@@ -1,0 +1,12 @@
+{% load url from future %}
+
+<h1>List view for TestDummy1</h1>
+
+<ul>
+{% for obj in objlist %}
+    <li>
+    {{ obj.title }}
+    {{ obj.content }}
+    </li>
+{% endfor %}
+</ul>
