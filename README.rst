@@ -2,10 +2,10 @@
 Ratings
 =======
 
-Polls is a simple Django app to conduct Web-based ratings. For each
-question, visitors can choose between a fixed number of answers.
+Ratings is a simple Django app allowing users to rate arbitrary data models.
+Each data model gets its own set of criteria.
 
-Detailed documentation is in the "docs" directory.
+Documentation is being added to the "docs" directory.
 
 Quick start
 -----------
@@ -23,7 +23,3 @@ Quick start
 
 3. Run `python manage.py syncdb` to create the ratings models.
 
-4. Start the development server and visit http://127.0.0.1:8000/admin/
-   to create a poll (you'll need the Admin app enabled).
-
-5. Visit http://127.0.0.1:8000/ratings/ to participate in the poll.
