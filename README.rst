@@ -2,7 +2,7 @@
 Ratings
 =======
 
-Polls is a simple Django app allowing users to rate arbitrary data models.
+Ratings is a simple Django app allowing users to rate arbitrary data models.
 Each data model gets its own set of criteria.
 
 Documentation is being added to the "docs" directory.
