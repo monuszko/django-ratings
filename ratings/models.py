@@ -7,10 +7,9 @@ from django.utils.timezone import now
 
 
 class Rating(models.Model):
-    """A user rating not specific to any data model."""
+    """Represents a user's rating of an arbitrary object."""
     content_type = models.ForeignKey(ContentType)
     # TODO: restrict Rating to data models (admin interface...)
-    # TODO: related objects (admin interface...)
     object_id = models.PositiveIntegerField()
     content_object = generic.GenericForeignKey('content_type', 'object_id')
 
@@ -18,15 +17,36 @@ class Rating(models.Model):
     opinion = models.TextField(blank=True)
     pub_date = models.DateTimeField(default=now, editable=False) 
 
+    def __repr__(self):
+        values = (self.content_type, self.object_id, self.user,
+                  self.opinion, self.pub_date)
+        return 'Rating({0}, {1}, {2}, {3}, {4})'.format(*values)
+
     def __unicode__(self):
-        return u"Rating: user {0}, obj {1}, model {2}".format(
-                self.user.username, self.object_id, self.content_type.model)
+        agg = self.aggregate_score()
+        subscores = []
+        for sc in self.subscores().items():
+            crit = sc[0]
+            val, mini, maxi = sc[1]
+            subscores.append('{0}: {1} in <{2}, {3}>'.format(crit, val, mini, maxi))
+        subscores = ', '.join(subscores)
+        return u"Rating: {0}, ({1})".format(agg, subscores)
 
     def aggregate_score(self):
         """The average of user's sub-scores"""
         # TODO: Cache score to save lookup time
         scores = Score.objects.filter(rating=self.pk)
-        return sum(Score.normalized() for sc in scores) / len(scores)
+        agg = sum(sc.normalized() for sc in scores) / len(scores)
+        return round(agg, 2)
+
+    def subscores(self):
+        """Returns: {'criteria1': (value, min, max), ... }"""
+        result = dict()
+        scores = Score.objects.filter(rating=self.pk)
+        for sc in scores:
+            result[sc.criteria.name] = (sc.value, sc.criteria.range_min,
+                                        sc.criteria.range_max)
+        return result
 
     class Meta:
         unique_together = (('user', 'content_type', 'object_id'))
