@@ -4,6 +4,36 @@ from django.contrib.auth.models import User
 from django.contrib.contenttypes.models  import ContentType
 from django.contrib.contenttypes import generic
 from django.utils.timezone import now
+from math import sqrt
+
+
+class RatedModel(models.Model):
+    """All models with rating are meant to subclass this."""
+
+    def get_ct(self):
+        """Returns the ContentType for this instance."""
+        return ContentType.objects.get_for_model(self)
+
+    def avg_ratings(self):
+        """Returns a list of average ratings."""
+        ct = ContentType.objects.get_for_model(self)
+        ratings = Rating.objects.filter(content_type=ct, object_id=self.pk)
+        return [r.aggregate_score() for r in ratings]
+
+    def avg_rating(self):
+        """Returns the average rating."""
+        ratings = self.avg_ratings()
+        return sum(ratings) / len(ratings) if ratings else 0
+
+    def std_deviation(self):
+        """Returns average difference of ratings from the mean."""
+        avg = self.avg_rating()
+        ratings = self.avg_ratings()
+        if not ratings:
+            return 0
+        numerator = [pow((r - avg), 2) for r in ratings]
+        numerator = sum(numerator)
+        return sqrt(numerator / len(ratings))
 
 
 class Rating(models.Model):
@@ -30,12 +60,14 @@ class Rating(models.Model):
             val, mini, maxi = sc[1]
             subscores.append('{0}: {1} in <{2}, {3}>'.format(crit, val, mini, maxi))
         subscores = ', '.join(subscores)
-        return u"Rating: {0}, ({1})".format(agg, subscores)
+        return u"Rating: {0}, {{{1}}}".format(agg, subscores)
 
     def aggregate_score(self):
         """The average of user's sub-scores"""
         # TODO: Cache score to save lookup time
         scores = Score.objects.filter(rating=self.pk)
+        if not scores:
+            return 0
         agg = sum(sc.normalized() for sc in scores) / len(scores)
         return round(agg, 2)
 
@@ -80,8 +112,8 @@ class Score(models.Model):
     value = models.IntegerField()
 
     def __unicode__(self):
-        return u"Score: val {0}, model {1}, crit {2}".format(
-                self.value, self.rating.content_type.model, self.criteria.name)
+        return u"Score: val {0}, model {1}, crit {2}".format(str(self.value),
+                self.rating.content_type.model, self.criteria.name)
 
     def clean(self):
         from django.core.exceptions import ValidationError
@@ -106,17 +138,17 @@ class Score(models.Model):
         return newmin + (fraction * newspan)
 
 
+class TestDummy1(RatedModel):
+    pub_date = models.DateTimeField(default=now) 
+    title = models.CharField(max_length=50)
+    content = models.TextField(blank=True)
+    slug = models.SlugField(unique=True)
 
-class TestDummy1(models.Model):
-    pub_date = models.DateTimeField(default=now, editable=False) 
+class TestDummy2(RatedModel):
     title = models.CharField(max_length=50)
     content = models.TextField(blank=True)
 
-class TestDummy2(models.Model):
-    title = models.CharField(max_length=50)
-    content = models.TextField(blank=True)
-
-class TestDummy2(models.Model):
+class TestDummy2(RatedModel):
     title = models.CharField(max_length=50)
     content = models.TextField(blank=True)
 
