@@ -8,9 +8,10 @@ class RatingInLine(generic.GenericTabularInline):
 
 
 class TestDummy1Admin(admin.ModelAdmin):
-    inlines = [
-            RatingInLine,
-            ]
+    prepopulated_fields = {'slug': ('title',)}
+    readonly_fields = ('avg_rating', 'std_deviation')
+    fields = ('title', 'slug', 'pub_date', 'content', 'avg_rating', 'std_deviation')
+    inlines = [RatingInLine,]
 
 
 admin.site.register(Rating)
