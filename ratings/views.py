@@ -3,7 +3,7 @@ from django.http import HttpResponse
 from django.shortcuts import render, Http404, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.contrib.contenttypes.models  import ContentType
-from ratings.models import TestDummy1, Rating, Criteria, Score
+from ratings.models import TestDummy1, Criteria, Score
 
 def index(request):
     """A simple list view to test ratings"""
@@ -21,8 +21,6 @@ def td1_rate(request, td1slug):
     obj = TestDummy1.objects.get(slug=td1slug)
     ct = ContentType.objects.get_for_model(obj)
 
-    rating = Rating(content_type=ct, object_id=obj.pk, user=request.user,
-                    opinion='Ala ma kota')
 
     crits = Criteria.objects.filter(content_type=ct)
     scores = []
@@ -30,9 +28,9 @@ def td1_rate(request, td1slug):
         mini = cr.range_min
         maxi = cr.range_max
         value = randrange(mini, maxi+1)
-        msg = 'Score for criteria {0}, range {1}-{2}'.format(cr.name, mini, maxi)
-        sc = Score(rating=rating, criteria=cr, value=value)
+        msg = u"Score for criteria {0}, range {1}-{2}".format(cr.name, mini, maxi)
+        sc = Score(criteria=cr, value=value)
         scores.append(sc)
     # TODO: The form !!!
     return render(request, 'ratings/td1_rate.html', {'obj': obj,
-        'scores': scores, 'crits': crits, 'rat': rating})
+        'scores': scores, 'crits': crits})

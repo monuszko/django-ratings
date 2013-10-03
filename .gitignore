@@ -1,4 +1,6 @@
+*.pyc
+*.swp
+*.dia.autosave
+# workaround for packaging problems (setup.py, distribute)
 manage.py
 myproject/*
-.pyc
-.swp

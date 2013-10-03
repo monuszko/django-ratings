@@ -1,4 +1,4 @@
-from __future__ import division
+from __future__ import division, print_function
 from django.db import models
 from django.contrib.auth.models import User
 from django.contrib.contenttypes.models  import ContentType
@@ -7,91 +7,105 @@ from django.utils.timezone import now
 from math import sqrt
 
 
-class RatedModel(models.Model):
-    """All models with rating are meant to subclass this."""
+class RatedObject(models.Model):
+    """Provides methods for calculating scores of a rated object."""
+    content_type = models.ForeignKey(ContentType)
+    object_id = models.PositiveIntegerField()
+    content_object = generic.GenericForeignKey('content_type', 'object_id')
 
-    def get_ct(self):
-        """Returns the ContentType for this instance."""
-        return ContentType.objects.get_for_model(self)
+#    def get_ct(self):
+#        """Returns the ContentType for this instance."""
+#        return ContentType.objects.get_for_model(self)
 
-    def avg_ratings(self):
-        """Returns a list of average ratings."""
-        ct = ContentType.objects.get_for_model(self)
-        ratings = Rating.objects.filter(content_type=ct, object_id=self.pk)
-        return [r.aggregate_score() for r in ratings]
+    def get_scores(self):
+        ct = ContentType.objects.get_for_model(self.content_object)
+        scores = Score.objects.filter(content_type=ct, object_id=self.pk)
+        scores = [s.value for s in scores]
 
-    def avg_rating(self):
-        """Returns the average rating."""
-        ratings = self.avg_ratings()
-        return sum(ratings) / len(ratings) if ratings else 0
+    def avg_score(self):
+        scores = self.get_scores()
+        return sum(scores) / len(scores)
 
     def std_deviation(self):
         """Returns average difference of ratings from the mean."""
-        avg = self.avg_rating()
-        ratings = self.avg_ratings()
-        if not ratings:
+        scores = self.get_scores()
+
+        avg_score = self.avg_score()
+        if not scores:
             return 0
-        numerator = [pow((r - avg), 2) for r in ratings]
+        numerator = [pow((s - avg), 2) for s in scores]
         numerator = sum(numerator)
         return sqrt(numerator / len(ratings))
 
 
-class Rating(models.Model):
-    """Represents a user's rating of an arbitrary object."""
-    content_type = models.ForeignKey(ContentType)
-    # TODO: restrict Rating to data models (admin interface...)
-    object_id = models.PositiveIntegerField()
-    content_object = generic.GenericForeignKey('content_type', 'object_id')
+#class RatedModel(models.Model):
+#    """All models with rating are meant to subclass this."""
+#
+#    def get_ct(self):
+#        """Returns the ContentType for this instance."""
+#        return ContentType.objects.get_for_model(self)
+#
+#    def get_scores(self):
+#        ct = ContentType.objects.get_for_model(self)
+#        scores = Score.objects.filter(content_type=ct, object_id=self.pk)
+#        scores = [s.value for s in scores]
+#
+#    def avg_score(self):
+#        scores = self.get_scores()
+#        return sum(scores) / len(scores)
+#
+#    def std_deviation(self):
+#        """Returns average difference of ratings from the mean."""
+#        scores = self.get_scores()
+#
+#        avg_score = self.avg_score()
+#        if not scores:
+#            return 0
+#        numerator = [pow((s - avg), 2) for s in scores]
+#        numerator = sum(numerator)
+#        return sqrt(numerator / len(ratings))
 
-    user = models.ForeignKey(User)
-    opinion = models.TextField(blank=True)
-    pub_date = models.DateTimeField(default=now, editable=False) 
 
-    def __repr__(self):
-        values = (self.content_type, self.object_id, self.user,
-                  self.opinion, self.pub_date)
-        return 'Rating({0}, {1}, {2}, {3}, {4})'.format(*values)
-
-    def __unicode__(self):
-        agg = self.aggregate_score()
-        subscores = []
-        for sc in self.subscores().items():
-            crit = sc[0]
-            val, mini, maxi = sc[1]
-            subscores.append('{0}: {1} in <{2}, {3}>'.format(crit, val, mini, maxi))
-        subscores = ', '.join(subscores)
-        return u"Rating: {0}, {{{1}}}".format(agg, subscores)
-
-    def aggregate_score(self):
-        """The average of user's sub-scores"""
-        # TODO: Cache score to save lookup time
-        scores = Score.objects.filter(rating=self.pk)
-        if not scores:
-            return 0
-        agg = sum(sc.normalized() for sc in scores) / len(scores)
-        return round(agg, 2)
-
-    def subscores(self):
-        """Returns: {'criteria1': (value, min, max), ... }"""
-        result = dict()
-        scores = Score.objects.filter(rating=self.pk)
-        for sc in scores:
-            result[sc.criteria.name] = (sc.value, sc.criteria.range_min,
-                                        sc.criteria.range_max)
-        return result
-
-    class Meta:
-        unique_together = (('user', 'content_type', 'object_id'))
+#class Rating(models.Model):
+#    """Represents a user's rating of an arbitrary object."""
+#
+#    def __repr__(self):
+#        values = (self.content_type, self.object_id, self.user,
+#                  self.opinion, self.pub_date)
+#        return 'Rating({0}, {1}, {2}, {3}, {4})'.format(*values)
+#
+#    def __unicode__(self):
+#        agg = self.aggregate_score()
+#        subscores = []
+#        for sc in self.subscores().items():
+#            crit = sc[0]
+#            val, mini, maxi = sc[1]
+#            subscores.append('{0}: {1} in <{2}, {3}>'.format(crit, val, mini, maxi))
+#        subscores = ', '.join(subscores)
+#        return u"Rating: {0}, {{{1}}}".format(agg, subscores)
+#
+#
+#    def subscores(self):
+#        """Returns: {'criteria1': (value, min, max), ... }"""
+#        result = dict()
+#        scores = Score.objects.filter(rating=self.pk)
+#        for sc in scores:
+#            result[sc.criteria.name] = (sc.value, sc.criteria.range_min,
+#                                        sc.criteria.range_max)
+#        return result
+#
+#    class Meta:
+#        unique_together = (('user', 'content_type', 'object_id'))
 
 
 class Criteria(models.Model):
     """Scores must evaluate certain criteria. Criteria
     are specific to a given data model."""
     content_type = models.ForeignKey(ContentType)
+
     range_min = models.IntegerField()
     range_max = models.IntegerField()
     name = models.CharField(max_length=20)
-
 
     def __unicode__(self):
         return u"Criteria {0} of {1}".format(self.name, self.content_type.model)
@@ -105,15 +119,39 @@ class Criteria(models.Model):
         unique_together = (('name', 'content_type'))
 
 
-class Score(models.Model):
-    """Several scores compose a Rating."""
-    rating = models.ForeignKey(Rating)
-    criteria = models.ForeignKey(Criteria)
-    value = models.IntegerField()
+class Opinion(models.Model):
+    content_type = models.ForeignKey(ContentType)
+    object_id = models.PositiveIntegerField()
+    content_object = generic.GenericForeignKey('content_type', 'object_id')
+
+    user = models.ForeignKey(User)
+    opinion = models.TextField(blank=True)
+    pub_date = models.DateTimeField(default=now, editable=False) 
 
     def __unicode__(self):
-        return u"Score: val {0}, model {1}, crit {2}".format(str(self.value),
-                self.rating.content_type.model, self.criteria.name)
+        return u"Opinion object for user {0}, ct {1}, obj_id {2}".format(
+                self.user, self.content_type, self.object_id)
+
+    class Meta:
+        unique_together = (('user', 'content_type', 'object_id'),)
+        # TODO: unique_together doesn't work here!
+
+class Score(models.Model):
+    """A generic score for any content object."""
+    content_type = models.ForeignKey(ContentType)
+    object_id = models.PositiveIntegerField()
+    content_object = generic.GenericForeignKey('content_type', 'object_id')
+
+    user = models.ForeignKey(User)
+    criteria = models.ForeignKey(Criteria)
+    value = models.IntegerField()
+    pub_date = models.DateTimeField(default=now, editable=False) 
+
+    def __unicode__(self):
+        val = str(self.value)
+        model = self.content_type.model
+        crit = self.criteria.name
+        return u"Score: val {0}, model {1}, crit {2}".format(val, model, crit)
 
     def clean(self):
         from django.core.exceptions import ValidationError
@@ -121,10 +159,9 @@ class Score(models.Model):
         # imports). Squirrels report 'Django is notorious for circular imports'
         if not self.criteria.range_min <= self.value <= self.criteria.range_max:
             raise ValidationError("Score value not in Criteria's range!")
-        if self.criteria.content_type != self.rating.content_type:
-            msg = "Rating's ContentType doesn't match Criteria's ContentType!"
+        if self.content_type != self.criteria.content_type:
+            msg = "object's ContentType must match Criteria's ContentType!"
             raise ValidationError(msg)
-
 
     def normalized(self, newmin=0, newmax=10):
         """Return value normalized to another range"""
@@ -138,17 +175,20 @@ class Score(models.Model):
         return newmin + (fraction * newspan)
 
 
-class TestDummy1(RatedModel):
+class TestDummy1(models.Model):
     pub_date = models.DateTimeField(default=now) 
     title = models.CharField(max_length=50)
     content = models.TextField(blank=True)
     slug = models.SlugField(unique=True)
 
-class TestDummy2(RatedModel):
+    def __unicode__(self):
+        return u"TestDummy1: {}".format(self.title)
+
+class TestDummy2(models.Model):
     title = models.CharField(max_length=50)
     content = models.TextField(blank=True)
 
-class TestDummy2(RatedModel):
+class TestDummy2(models.Model):
     title = models.CharField(max_length=50)
     content = models.TextField(blank=True)
 
