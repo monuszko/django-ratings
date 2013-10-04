@@ -13,10 +13,6 @@ class RatedObject(models.Model):
     object_id = models.PositiveIntegerField()
     content_object = generic.GenericForeignKey('content_type', 'object_id')
 
-#    def get_ct(self):
-#        """Returns the ContentType for this instance."""
-#        return ContentType.objects.get_for_model(self)
-
     def get_scores(self):
         ct = ContentType.objects.get_for_model(self.content_object)
         scores = Score.objects.filter(content_type=ct, object_id=self.pk)
@@ -95,7 +91,7 @@ class RatedObject(models.Model):
 #        return result
 #
 #    class Meta:
-#        unique_together = (('user', 'content_type', 'object_id'))
+#        unique_together = (('user', 'content_type', 'object_id'),)
 
 
 class Criteria(models.Model):
@@ -108,7 +104,9 @@ class Criteria(models.Model):
     name = models.CharField(max_length=20)
 
     def __unicode__(self):
-        return u"Criteria {0} of {1}".format(self.name, self.content_type.model)
+        return u"Criteria {0} of {1} <{2}-{3}>".format(self.name,
+                self.content_type.model, self.range_min, self.range_max)
+
 
     def clean(self):
         from django.core.exceptions import ValidationError
@@ -136,6 +134,7 @@ class Opinion(models.Model):
         unique_together = (('user', 'content_type', 'object_id'),)
         # TODO: unique_together doesn't work here!
 
+
 class Score(models.Model):
     """A generic score for any content object."""
     content_type = models.ForeignKey(ContentType)
@@ -159,9 +158,6 @@ class Score(models.Model):
         # imports). Squirrels report 'Django is notorious for circular imports'
         if not self.criteria.range_min <= self.value <= self.criteria.range_max:
             raise ValidationError("Score value not in Criteria's range!")
-        if self.content_type != self.criteria.content_type:
-            msg = "object's ContentType must match Criteria's ContentType!"
-            raise ValidationError(msg)
 
     def normalized(self, newmin=0, newmax=10):
         """Return value normalized to another range"""
@@ -173,6 +169,18 @@ class Score(models.Model):
 
         fraction = (self.value - oldmin) / oldspan
         return newmin + (fraction * newspan)
+
+    def save(self, *args, **kwargs):
+        """Workaround for bug #12028 . unique_together is not enough."""
+        if Score.objects.filter(user=self.user,
+                content_type=self.content_type,
+                object_id=self.object_id).exists():
+            return
+        super(Score, self).save(*args, **kwargs)
+        # TODO: Prevents duplicates, but prints a misleading message "saved..."
+
+    class Meta:
+        unique_together = ('user', 'object_id', 'content_type')
 
 
 class TestDummy1(models.Model):
