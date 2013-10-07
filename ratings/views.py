@@ -21,7 +21,6 @@ def td1_rate(request, td1slug):
     obj = TestDummy1.objects.get(slug=td1slug)
     ct = ContentType.objects.get_for_model(obj)
 
-
     crits = Criteria.objects.filter(content_type=ct)
     scores = []
     for cr in crits:

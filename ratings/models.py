@@ -7,44 +7,20 @@ from django.utils.timezone import now
 from math import sqrt
 
 
-class RatedObject(models.Model):
-    """Provides methods for calculating scores of a rated object."""
-    content_type = models.ForeignKey(ContentType)
-    object_id = models.PositiveIntegerField()
-    content_object = generic.GenericForeignKey('content_type', 'object_id')
-
-    def get_scores(self):
-        ct = ContentType.objects.get_for_model(self.content_object)
-        scores = Score.objects.filter(content_type=ct, object_id=self.pk)
-        scores = [s.value for s in scores]
-
-    def avg_score(self):
-        scores = self.get_scores()
-        return sum(scores) / len(scores)
-
-    def std_deviation(self):
-        """Returns average difference of ratings from the mean."""
-        scores = self.get_scores()
-
-        avg_score = self.avg_score()
-        if not scores:
-            return 0
-        numerator = [pow((s - avg), 2) for s in scores]
-        numerator = sum(numerator)
-        return sqrt(numerator / len(ratings))
-
-
-#class RatedModel(models.Model):
-#    """All models with rating are meant to subclass this."""
-#
-#    def get_ct(self):
-#        """Returns the ContentType for this instance."""
-#        return ContentType.objects.get_for_model(self)
+#class RatedObject(models.Model):
+#    """Provides methods for calculating scores of a rated object."""
+#    content_type = models.ForeignKey(ContentType)
+#    object_id = models.PositiveIntegerField()
+#    content_object = generic.GenericForeignKey('content_type', 'object_id')
+#    cached_avg = models.DecimalField(max_digits=2, decimal_places=1)
 #
 #    def get_scores(self):
-#        ct = ContentType.objects.get_for_model(self)
+#        ct = ContentType.objects.get_for_model(self.content_object)
 #        scores = Score.objects.filter(content_type=ct, object_id=self.pk)
 #        scores = [s.value for s in scores]
+#
+#    def get_avg(self):
+#        return self.cached_avg
 #
 #    def avg_score(self):
 #        scores = self.get_scores()
@@ -60,79 +36,40 @@ class RatedObject(models.Model):
 #        numerator = [pow((s - avg), 2) for s in scores]
 #        numerator = sum(numerator)
 #        return sqrt(numerator / len(ratings))
-
-
-#class Rating(models.Model):
-#    """Represents a user's rating of an arbitrary object."""
-#
-#    def __repr__(self):
-#        values = (self.content_type, self.object_id, self.user,
-#                  self.opinion, self.pub_date)
-#        return 'Rating({0}, {1}, {2}, {3}, {4})'.format(*values)
-#
-#    def __unicode__(self):
-#        agg = self.aggregate_score()
-#        subscores = []
-#        for sc in self.subscores().items():
-#            crit = sc[0]
-#            val, mini, maxi = sc[1]
-#            subscores.append('{0}: {1} in <{2}, {3}>'.format(crit, val, mini, maxi))
-#        subscores = ', '.join(subscores)
-#        return u"Rating: {0}, {{{1}}}".format(agg, subscores)
-#
 #
 #    def subscores(self):
 #        """Returns: {'criteria1': (value, min, max), ... }"""
 #        result = dict()
 #        scores = Score.objects.filter(rating=self.pk)
 #        for sc in scores:
-#            result[sc.criteria.name] = (sc.value, sc.criteria.range_min,
-#                                        sc.criteria.range_max)
-#        return result
-#
-#    class Meta:
-#        unique_together = (('user', 'content_type', 'object_id'),)
-
+#            result[sc.criteria.name] = (sc.value, sc.criteria.val_min,
 
 class Criteria(models.Model):
     """Scores must evaluate certain criteria. Criteria
-    are specific to a given data model."""
+    are model-specific."""
     content_type = models.ForeignKey(ContentType)
+    name = models.CharField(max_length=250)
 
-    range_min = models.IntegerField()
-    range_max = models.IntegerField()
-    name = models.CharField(max_length=20)
+    val_min = models.IntegerField()
+    val_max = models.IntegerField()
+    labels = models.CharField(max_length=250) # json
+
+    #folder = ForeignKey # relacja self np Null raczej M2M
+    published = models.BooleanField(default=True)
+    date_min = models.DateTimeField(null=True, blank=True)
+    date_max = models.DateTimeField(null=True, blank=True)
 
     def __unicode__(self):
         return u"Criteria {0} of {1} <{2}-{3}>".format(self.name,
-                self.content_type.model, self.range_min, self.range_max)
-
+                self.content_type.model, self.val_min, self.val_max)
 
     def clean(self):
         from django.core.exceptions import ValidationError
-        if not self.range_min < self.range_max: 
-            raise ValidationError("range_min must be lower than range_max!")
+        if not self.val_min < self.val_max: 
+            raise ValidationError("val_min must be lower than val_max!")
 
     class Meta:
         unique_together = (('name', 'content_type'))
-
-
-class Opinion(models.Model):
-    content_type = models.ForeignKey(ContentType)
-    object_id = models.PositiveIntegerField()
-    content_object = generic.GenericForeignKey('content_type', 'object_id')
-
-    user = models.ForeignKey(User)
-    opinion = models.TextField(blank=True)
-    pub_date = models.DateTimeField(default=now, editable=False) 
-
-    def __unicode__(self):
-        return u"Opinion object for user {0}, ct {1}, obj_id {2}".format(
-                self.user, self.content_type, self.object_id)
-
-    class Meta:
-        unique_together = (('user', 'content_type', 'object_id'),)
-        # TODO: unique_together doesn't work here!
 
 
 class Score(models.Model):
@@ -144,6 +81,7 @@ class Score(models.Model):
     user = models.ForeignKey(User)
     criteria = models.ForeignKey(Criteria)
     value = models.IntegerField()
+    comment = models.CharField(max_length=5000)
     pub_date = models.DateTimeField(default=now, editable=False) 
 
     def __unicode__(self):
@@ -156,7 +94,7 @@ class Score(models.Model):
         from django.core.exceptions import ValidationError
         # I don't put it at the start of the file to play it safe (circular
         # imports). Squirrels report 'Django is notorious for circular imports'
-        if not self.criteria.range_min <= self.value <= self.criteria.range_max:
+        if not self.criteria.val_min <= self.value <= self.criteria.val_max:
             raise ValidationError("Score value not in Criteria's range!")
         ct = self.content_type if hasattr(self, 'content_type') else None
         # HACK: apparently Model.clean() is called twice, the first time
@@ -169,8 +107,8 @@ class Score(models.Model):
 
     def normalized(self, newmin=0, newmax=10):
         """Return value normalized to another range"""
-        oldmin = self.criteria.range_min
-        oldmax = self.criteria.range_max
+        oldmin = self.criteria.val_min
+        oldmax = self.criteria.val_max
 
         oldspan = oldmax - oldmin
         newspan = newmax - newmin
