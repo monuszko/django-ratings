@@ -9,13 +9,14 @@ class ScoreInline(generic.GenericTabularInline):
 
 class TestDummy1Admin(admin.ModelAdmin):
     prepopulated_fields = {'slug': ('title',)}
-    fields = ('title', 'slug', 'pub_date', 'content')
+    fields = ('title', 'slug', 'pub_date', 'content', 'avg_score')
+    readonly_fields = ('avg_score', 'std_dev')
     inlines = [ScoreInline,]
 
 
 class RatedObjectAdmin(admin.ModelAdmin):
     fields = ('avg_score', 'content_type', 'object_id')
-    readonly_fields = ('avg_score',)
+    readonly_fields = ('avg_score', 'std_dev')
 
 
 admin.site.register(Criteria)

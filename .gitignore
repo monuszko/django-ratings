@@ -4,3 +4,4 @@
 # workaround for packaging problems (setup.py, distribute)
 manage.py
 myproject/*
+ratings/migrations/*

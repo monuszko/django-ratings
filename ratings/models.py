@@ -7,42 +7,38 @@ from django.utils.timezone import now
 from math import sqrt
 
 
-#class RatedObject(models.Model):
-#    """Provides methods for calculating scores of a rated object."""
-#    content_type = models.ForeignKey(ContentType)
-#    object_id = models.PositiveIntegerField()
-#    content_object = generic.GenericForeignKey('content_type', 'object_id')
-#    cached_avg = models.DecimalField(max_digits=2, decimal_places=1)
-#
-#    def get_scores(self):
-#        ct = ContentType.objects.get_for_model(self.content_object)
-#        scores = Score.objects.filter(content_type=ct, object_id=self.pk)
-#        scores = [s.value for s in scores]
-#
-#    def get_avg(self):
-#        return self.cached_avg
-#
-#    def avg_score(self):
-#        scores = self.get_scores()
-#        return sum(scores) / len(scores)
-#
-#    def std_deviation(self):
-#        """Returns average difference of ratings from the mean."""
-#        scores = self.get_scores()
-#
-#        avg_score = self.avg_score()
-#        if not scores:
-#            return 0
-#        numerator = [pow((s - avg), 2) for s in scores]
-#        numerator = sum(numerator)
-#        return sqrt(numerator / len(ratings))
-#
-#    def subscores(self):
-#        """Returns: {'criteria1': (value, min, max), ... }"""
-#        result = dict()
-#        scores = Score.objects.filter(rating=self.pk)
-#        for sc in scores:
-#            result[sc.criteria.name] = (sc.value, sc.criteria.val_min,
+class RatedModel(models.Model):
+    """Provides methods for calculating scores of a rated object."""
+    cached_avg = models.DecimalField(max_digits=2, decimal_places=1)
+
+    def get_scores(self):
+        ct = ContentType.objects.get_for_model(self)
+        scores = Score.objects.filter(content_type=ct, object_id=self.pk)
+        scores = [s.value for s in scores]
+
+    def avg_score(self):
+        scores = self.get_scores()
+        return sum(scores) / len(scores)
+
+    def std_dev(self):
+        """Returns average difference of ratings from the mean."""
+        scores = self.get_scores()
+
+        avg_score = self.avg_score()
+        if not scores:
+            return 0
+        numerator = [pow((s - avg), 2) for s in scores]
+        numerator = sum(numerator)
+        return sqrt(numerator / len(ratings))
+
+    def subscores(self):
+        """Returns: {'criteria1': (value, min, max), ... }"""
+        result = dict()
+        scores = Score.objects.filter(rating=self.pk)
+        for sc in scores:
+            result[sc.criteria.name] = (sc.value, sc.criteria.val_min,
+                    sc.criteria.val_max)
+
 
 class Criteria(models.Model):
     """Scores must evaluate certain criteria. Criteria
@@ -120,7 +116,7 @@ class Score(models.Model):
         unique_together = ('user', 'object_id', 'content_type')
 
 
-class TestDummy1(models.Model):
+class TestDummy1(RatedModel):
     pub_date = models.DateTimeField(default=now) 
     title = models.CharField(max_length=50)
     content = models.TextField(blank=True)
@@ -129,11 +125,11 @@ class TestDummy1(models.Model):
     def __unicode__(self):
         return u"TestDummy1: {}".format(self.title)
 
-class TestDummy2(models.Model):
+class TestDummy2(RatedModel):
     title = models.CharField(max_length=50)
     content = models.TextField(blank=True)
 
-class TestDummy2(models.Model):
+class TestDummy2(RatedModel):
     title = models.CharField(max_length=50)
     content = models.TextField(blank=True)
 
