@@ -9,7 +9,7 @@ from math import sqrt
 
 class RatedModel(models.Model):
     """Provides methods for calculating scores of a rated object."""
-    cached_avg = models.DecimalField(max_digits=2, decimal_places=1)
+    cached_avg = models.DecimalField(max_digits=2, decimal_places=1, default='0.0')
 
     def get_scores(self):
         ct = ContentType.objects.get_for_model(self)
@@ -48,7 +48,7 @@ class Criteria(models.Model):
 
     val_min = models.IntegerField()
     val_max = models.IntegerField()
-    labels = models.CharField(max_length=250) # json
+    labels = models.CharField(blank=True, max_length=250) # json
 
     #folder = ForeignKey # relacja self np Null raczej M2M
     published = models.BooleanField(default=True)
@@ -88,8 +88,6 @@ class Score(models.Model):
 
     def clean(self):
         from django.core.exceptions import ValidationError
-        # I don't put it at the start of the file to play it safe (circular
-        # imports). Squirrels report 'Django is notorious for circular imports'
         if not self.criteria.val_min <= self.value <= self.criteria.val_max:
             raise ValidationError("Score value not in Criteria's range!")
         ct = self.content_type if hasattr(self, 'content_type') else None
@@ -98,7 +96,8 @@ class Score(models.Model):
         # Also a hack for bug #12028 (unique_together vs obj.content_type)
         if Score.objects.filter(user=self.user,
                                 object_id=self.object_id,
-                                content_type=ct).exists():
+                                content_type=ct,
+                                criteria=self.criteria).exists():
             raise ValidationError("Only one Score per User per object!")
 
     def normalized(self, newmin=0, newmax=10):
@@ -113,7 +112,7 @@ class Score(models.Model):
         return newmin + (fraction * newspan)
 
     class Meta:
-        unique_together = ('user', 'object_id', 'content_type')
+        unique_together = ('user', 'object_id', 'content_type', 'criteria')
 
 
 class TestDummy1(RatedModel):

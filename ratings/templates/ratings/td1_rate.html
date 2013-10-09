@@ -1,16 +1,14 @@
-<h1>{{ obj.title }}</h1>
+<h1>Rate: {{ obj.title }}</h1>
 <p>Obj content: {{ obj.content }}</p>
 
+<p>User: {{ user }}</p>
 <hr>
 
-<p>User: {{ user }}</p>
-<p>Opinion: {{ rat.opinion }}</p>
-<ul>
-    <p>Scores by criteria</p>
-{% for sc in scores %}
-    <li>
-    {{ sc.criteria.name }}: {{ sc.value }} in
-              &lt;{{ sc.criteria.range_min }}, {{ sc.criteria.range_max }}&gt;
-    </li>
+<form action="." method="post">{% csrf_token %}
+{% for form in score_forms %}
+    {{ form.prefix }}
+    {{ form.as_p }}
 {% endfor %}
-</ul>
+<input type="submit" value="Submit" />
+</form>
+
