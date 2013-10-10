@@ -1,5 +1,7 @@
+{% load url from future %}
 <h1>{{ obj.title }}</h1>
 <p>{{ obj.content|linebreaks }}</p>
+<p><a href="{{ obj.get_rate_url }}">Rate this object</a></p>
 <h2>Current rating:</h2>
 <dl>
     <dt>Average score:</dt>

@@ -4,6 +4,7 @@ from django.contrib.auth.models import User
 from django.contrib.contenttypes.models  import ContentType
 from django.contrib.contenttypes import generic
 from django.utils.timezone import now
+from django.core.urlresolvers import reverse
 from math import sqrt
 
 
@@ -13,6 +14,11 @@ class RatedModel(models.Model):
 
     def get_ct(self):
         return ContentType.objects.get_for_model(self)
+
+    def get_rate_url(self):
+        ct_id = self.get_ct().pk
+        obj_id = self.pk
+        return reverse('ratings:rate', kwargs={'ct_id': ct_id, 'obj_id': obj_id})
 
     def get_crits(self):
         ct = self.get_ct()
@@ -54,14 +60,6 @@ class RatedModel(models.Model):
         numerator = [pow((s - avg_score), 2) for s in scores]
         numerator = sum(numerator)
         return sqrt(numerator / len(scores))
-
-    def subscores(self):
-        """Returns: {'criteria1': (value, min, max), ... }"""
-        result = dict()
-        scores = Score.objects.filter(rating=self.pk)
-        for sc in scores:
-            result[sc.criteria.name] = (sc.value, sc.criteria.val_min,
-                    sc.criteria.val_max)
 
 
 class Criteria(models.Model):

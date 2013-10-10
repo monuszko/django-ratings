@@ -23,8 +23,10 @@ def td1_detail(request, td1slug):
 
 # TODO: object-agnostic Rate view
 @login_required
-def td1_rate(request, td1slug):
-    obj = TestDummy1.objects.get(slug=td1slug)
+def rate(request, ct_id, obj_id):
+    ct = ContentType.objects.get_for_id(ct_id)
+    obj = ct.get_object_for_this_type(pk = obj_id)
+
     ct = ContentType.objects.get_for_model(obj)
     crits = Criteria.objects.filter(content_type=ct)
     if request.method == "POST":
@@ -48,6 +50,6 @@ def td1_rate(request, td1slug):
             sc = Score(user=request.user, content_type=ct, object_id=obj.pk,
                        criteria=crit)
             sforms.append(ScoreForm(prefix=crit.name, instance=sc))
-    return render_to_response('ratings/td1_rate.html', {'score_forms': sforms},
+    return render_to_response('ratings/rate.html', {'score_forms': sforms},
             context_instance=RequestContext(request))
 

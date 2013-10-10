@@ -7,7 +7,7 @@
     <li>
     <h2>{{ obj.title }}</h2>
     <p>{{ obj.content|linebreaks }}</p>
-    <a href="{% url 'ratings:td1_detail' obj.slug %}">{{ obj.title }}</a>
+    <a href="{% url 'ratings:td1_detail' obj.slug %}">{{ obj.title }}</a>({{ obj.avg_score }})
     </li>
 {% endfor %}
 </ul>
