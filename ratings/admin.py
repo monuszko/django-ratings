@@ -1,6 +1,6 @@
 from django.contrib import admin
 from django.contrib.contenttypes import generic
-from ratings.models import Criteria, Score, TestDummy1
+from ratings.models import Criteria, Score
 
 
 class ScoreInline(generic.GenericTabularInline):
@@ -21,5 +21,4 @@ class RatedObjectAdmin(admin.ModelAdmin):
 
 admin.site.register(Criteria)
 admin.site.register(Score)
-admin.site.register(TestDummy1, TestDummy1Admin)
 

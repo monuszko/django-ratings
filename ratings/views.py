@@ -6,20 +6,9 @@ from django.contrib.contenttypes.models import ContentType
 from django.shortcuts import render_to_response
 from django.template import RequestContext
 
-from ratings.models import TestDummy1, Criteria, Score
+from ratings.models import Criteria, Score
 from ratings.forms import ScoreForm
 from django.core.exceptions import ValidationError
-
-def index(request):
-    """A simple list view to test ratings"""
-    objlist = TestDummy1.objects.all()
-    return render(request, 'ratings/index.html', {'objlist': objlist})
-
-
-def td1_detail(request, td1slug):
-    """A simple detail view"""
-    obj = TestDummy1.objects.get(slug=td1slug)
-    return render(request, 'ratings/td1_detail.html', {'obj': obj})
 
 # TODO: object-agnostic Rate view
 @login_required

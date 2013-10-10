@@ -10,7 +10,8 @@ from math import sqrt
 
 class RatedModel(models.Model):
     """Provides methods for calculating scores of a rated object."""
-    cached_avg = models.DecimalField(max_digits=2, decimal_places=1, default='0.0')
+    cached_avg = models.DecimalField(max_digits=2, decimal_places=1,
+            default='0.0', editable=False)
 
     def get_ct(self):
         return ContentType.objects.get_for_model(self)
@@ -32,7 +33,7 @@ class RatedModel(models.Model):
 
     def avg_score(self):
         scores = self.get_scores()
-        return sum(scores) / len(scores)
+        return sum(scores) / len(scores) if scores else 0
 
     def scores_by_crit(self):
         crits = self.get_crits()
@@ -135,23 +136,5 @@ class Score(models.Model):
 
     class Meta:
         unique_together = ('user', 'object_id', 'content_type', 'criteria')
-
-
-class TestDummy1(RatedModel):
-    pub_date = models.DateTimeField(default=now) 
-    title = models.CharField(max_length=50)
-    content = models.TextField(blank=True)
-    slug = models.SlugField(unique=True)
-
-    def __unicode__(self):
-        return u"TestDummy1: {}".format(self.title)
-
-class TestDummy2(RatedModel):
-    title = models.CharField(max_length=50)
-    content = models.TextField(blank=True)
-
-class TestDummy2(RatedModel):
-    title = models.CharField(max_length=50)
-    content = models.TextField(blank=True)
 
 
