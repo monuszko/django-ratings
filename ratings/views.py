@@ -28,9 +28,6 @@ def td1_rate(request, td1slug):
     ct = ContentType.objects.get_for_model(obj)
     crits = Criteria.objects.filter(content_type=ct)
     if request.method == "POST":
-        sforms = []
-        for crit in crits:
-            sforms.append(ScoreForm(request.POST, prefix=crit.name))
         sforms = [ScoreForm(request.POST, prefix=crit.name) for crit in crits]
         if all([sf.is_valid() for sf in sforms]):
             for sf in sforms:

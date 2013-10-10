@@ -6,7 +6,7 @@
 
 <form action="." method="post">{% csrf_token %}
 {% for form in score_forms %}
-    {{ form.prefix }}
+    {{ form.name }} &lt;{{ form.min }}-{{ form.max }}&gt;
     {{ form.as_p }}
 {% endfor %}
 <input type="submit" value="Submit" />

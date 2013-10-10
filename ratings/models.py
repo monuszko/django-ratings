@@ -11,25 +11,49 @@ class RatedModel(models.Model):
     """Provides methods for calculating scores of a rated object."""
     cached_avg = models.DecimalField(max_digits=2, decimal_places=1, default='0.0')
 
+    def get_ct(self):
+        return ContentType.objects.get_for_model(self)
+
+    def get_crits(self):
+        ct = self.get_ct()
+        return Criteria.objects.filter(content_type=ct)
+
     def get_scores(self):
-        ct = ContentType.objects.get_for_model(self)
+        ct = self.get_ct()
         scores = Score.objects.filter(content_type=ct, object_id=self.pk)
         scores = [s.value for s in scores]
+        return scores
 
     def avg_score(self):
         scores = self.get_scores()
         return sum(scores) / len(scores)
 
+    def scores_by_crit(self):
+        crits = self.get_crits()
+        result = {}
+        for crit in crits:
+            v = [sc.value for sc in Score.objects.filter(criteria=crit)]
+            result[crit.name] = v
+        return result
+
+    def avg_by_crit(self):
+        """Returns a dictionary of criteria names and average scores"""
+        result = self.scores_by_crit()
+        for crit, scores in result.items():
+            result[crit] = sum(scores) / len(scores)
+        return result
+
     def std_dev(self):
-        """Returns average difference of ratings from the mean."""
+        """Returns average difference of Scores from the mean."""
+        # TODO: Make this User-based rather than Score-based
         scores = self.get_scores()
 
         avg_score = self.avg_score()
         if not scores:
             return 0
-        numerator = [pow((s - avg), 2) for s in scores]
+        numerator = [pow((s - avg_score), 2) for s in scores]
         numerator = sum(numerator)
-        return sqrt(numerator / len(ratings))
+        return sqrt(numerator / len(scores))
 
     def subscores(self):
         """Returns: {'criteria1': (value, min, max), ... }"""

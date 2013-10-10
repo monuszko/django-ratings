@@ -1,2 +1,16 @@
 <h1>{{ obj.title }}</h1>
 <p>{{ obj.content|linebreaks }}</p>
+<h2>Current rating:</h2>
+<dl>
+    <dt>Average score:</dt>
+    <dd>{{ obj.avg_score }}</dd>
+    <dt>Standard deviation:</dt>
+    <dd>{{ obj.std_dev }}</dd>
+    <dt>Avg by subscore:</dt>
+    <dd><table>
+        {% for k, v in obj.avg_by_crit.items %}
+        <tr><td>{{ k }}</td><td>{{ v }}</td></tr>
+        {% endfor %}
+        </table>
+    </dd>
+</dl>

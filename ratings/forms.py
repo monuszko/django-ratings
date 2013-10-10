@@ -2,7 +2,15 @@ from django import forms
 from ratings.models import Score
 
 
+# When using ModelForm, form.is_valid() calls Score.clean()
+# and insists on validating fields which may not exist at the time!
 class ScoreForm(forms.ModelForm):
+    def name(self):
+        return self.instance.criteria.name
+    def min(self):
+        return self.instance.criteria.val_min
+    def max(self):
+        return self.instance.criteria.val_max
     class Meta:
         model = Score
         widgets = {
@@ -11,12 +19,4 @@ class ScoreForm(forms.ModelForm):
                 'object_id': forms.HiddenInput(),
                 'criteria': forms.HiddenInput(),
                 }
-
-# When using ModelForm, form.is_valid() calls Score.clean()
-# and insists on validating fields which don't exist at the time!
-
-#class ScoreForm(forms.Form):
-#    value = forms.IntegerField()
-#    comment = forms.CharField(max_length=5000)
-
 
