@@ -8,6 +8,12 @@ from django.utils.timezone import now
 from django.core.urlresolvers import reverse
 from django.core.exceptions import ValidationError
 from math import sqrt
+from operator import itemgetter
+
+
+def average(numbers):
+    """Returns average of a sequence of numbers, or 0"""
+    return sum(numbers) / len(numbers) if numbers else 0
 
 
 class RatedModel(models.Model):
@@ -42,23 +48,78 @@ class RatedModel(models.Model):
         scores = [s.value for s in scores]
         return scores
 
+    def get_voters(self):
+        ct = self.get_ct()
+        scores = Score.objects.filter(content_type=ct, object_id=self.pk)
+        voters = len({score.user for score in scores})
+        return voters
+
     def avg_score(self):
         scores = self.get_scores()
         return sum(scores) / len(scores) if scores else 0
 
     def scores_by_crit(self):
         crits = self.get_crits()
-        result = {}
+        result = []
         for crit in crits:
-            v = [sc.value for sc in Score.objects.filter(criteria=crit)]
-            result[crit.name] = v
+            scores = [sc.value for sc in Score.objects.filter(criteria=crit,
+                object_id=self.pk)]
+            avg = sum(scores) / len(scores) if scores else 0
+            # Calculate population standard deviation:
+            if not avg:
+                std_dev = 0
+            else:
+                numerator = sum(pow((s - avg), 2) for s in scores)
+                std_dev = sqrt(numerator / len(scores))
+            result.append({'name': crit.name, 'scores': scores, 'avg': avg,
+                           'std_dev': std_dev})
         return result
 
-    def avg_by_crit(self):
-        """Returns a dictionary of criteria names and average scores"""
-        result = self.scores_by_crit()
-        for crit, scores in result.items():
-            result[crit] = sum(scores) / len(scores)
+    def scores_by_users(self):
+        result = []
+        scores = Score.objects.filter(object_id=self.pk)
+        users = {}
+        for score in scores:
+            username = score.user.username
+            if username not in users:
+                by_crit = [
+                        {
+                        'name': score.criteria.name,
+                        'value': score.value,
+                        'comment': score.comment
+                        }
+                    ]
+                users[username] = {
+                        'pub_date': score.pub_date,
+                        'by_crit' : by_crit
+                        }
+            else:
+                users[username]['by_crit'].append(
+                        {
+                            'name': score.criteria.name,
+                            'value': score.value,
+                            'comment': score.comment
+                        }
+                    )
+
+        print('USERS!!!', users)
+        for k, v in users.items():
+            numbers = [crit['value'] for crit in v['by_crit']]
+            print('Print 2')
+            print('numbers for average', numbers)
+            avg = average(numbers)
+            by_crit = v['by_crit']
+            by_crit.sort(key=itemgetter('name'))
+            result.append(
+                    {
+                        'username': k,
+                        'pub_date': v['pub_date'],
+                        'by_crit': by_crit,
+                        'avg': avg
+                        }
+                    )
+        result.sort(key=itemgetter('pub_date'), reverse=True)
+        print('result !!!!!!!!!!!!!', result)
         return result
 
     def std_dev(self):
@@ -109,8 +170,16 @@ class Score(models.Model):
 
     user = models.ForeignKey(User, editable=False)
     criteria = models.ForeignKey(Criteria, editable=False)
-    value = models.IntegerField()
-    comment = models.CharField(max_length=5000)
+    # TODO: values in Score instead of Criteria ? Hmm.
+    VALUE_CHOICES = (
+            (1, '1-Very poor!'),
+            (2, '2-Poor'),
+            (3, '3-Average'),
+            (4, '4-Good'),
+            (5, '5-Very good!'),
+            )
+    value = models.IntegerField(choices=VALUE_CHOICES)
+    comment = models.CharField(blank=True, max_length=5000)
     pub_date = models.DateTimeField(default=now, editable=False) 
 
     def __unicode__(self):
@@ -132,6 +201,7 @@ class Score(models.Model):
 
     class Meta:
         unique_together = ('user', 'object_id', 'content_type', 'criteria')
+        ordering = ['-pub_date']
 
 
 class ScoreForm(forms.ModelForm):
@@ -163,4 +233,7 @@ class ScoreForm(forms.ModelForm):
 
     class Meta:
         model = Score
+        widgets = {
+                'comment': forms.Textarea(attrs={'cols': 40, 'rows': 3}),
+                }
 
