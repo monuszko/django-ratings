@@ -102,11 +102,8 @@ class RatedModel(models.Model):
                         }
                     )
 
-        print('USERS!!!', users)
         for k, v in users.items():
             numbers = [crit['value'] for crit in v['by_crit']]
-            print('Print 2')
-            print('numbers for average', numbers)
             avg = average(numbers)
             by_crit = v['by_crit']
             by_crit.sort(key=itemgetter('name'))
@@ -119,7 +116,6 @@ class RatedModel(models.Model):
                         }
                     )
         result.sort(key=itemgetter('pub_date'), reverse=True)
-        print('result !!!!!!!!!!!!!', result)
         return result
 
     def std_dev(self):
@@ -141,25 +137,39 @@ class Criteria(models.Model):
     content_type = models.ForeignKey(ContentType)
     name = models.CharField(max_length=250)
 
-    val_min = models.IntegerField()
-    val_max = models.IntegerField()
-    labels = models.CharField(blank=True, max_length=250) # json
-
     #folder = ForeignKey # relacja self np Null raczej M2M
-    published = models.BooleanField(default=True)
+    publish = models.BooleanField(default=True)
     date_min = models.DateTimeField(null=True, blank=True)
     date_max = models.DateTimeField(null=True, blank=True)
 
     def __unicode__(self):
-        return u"Criteria {0} of {1} <{2}-{3}>".format(self.name,
-                self.content_type.model, self.val_min, self.val_max)
-
-    def clean(self):
-        if not self.val_min < self.val_max: 
-            raise ValidationError("val_min must be lower than val_max!")
+        return u"Criteria {0} of {1}".format(self.name,
+                self.content_type.model)
 
     class Meta:
         unique_together = (('name', 'content_type'))
+
+
+class Choice(models.Model):
+    value = models.IntegerField()
+    label = models.CharField(max_length=250)
+
+    def __unicode__(self):
+        return u"Choice: value '{}', label '{}'".format(self.value, self.label)
+
+    class Meta:
+        ordering = ['value']
+        unique_together = ('value', 'label')
+
+
+def get_choices():
+    choices = Choice.objects.all()
+    choices = ((choice.value, choice.label) for choice in choices)
+    return choices
+
+
+def get_choice_values():
+    return [first for first, second in get_choices()]
 
 
 class Score(models.Model):
@@ -171,14 +181,7 @@ class Score(models.Model):
     user = models.ForeignKey(User, editable=False)
     criteria = models.ForeignKey(Criteria, editable=False)
     # TODO: values in Score instead of Criteria ? Hmm.
-    VALUE_CHOICES = (
-            (1, '1-Very poor!'),
-            (2, '2-Poor'),
-            (3, '3-Average'),
-            (4, '4-Good'),
-            (5, '5-Very good!'),
-            )
-    value = models.IntegerField(choices=VALUE_CHOICES)
+    value = models.IntegerField()
     comment = models.CharField(blank=True, max_length=5000)
     pub_date = models.DateTimeField(default=now, editable=False) 
 
@@ -188,23 +191,13 @@ class Score(models.Model):
         crit = self.criteria.name
         return u"Score: val {0}, model {1}, crit {2}".format(val, model, crit)
 
-    def normalized(self, newmin=0, newmax=10):
-        """Return value normalized to another range"""
-        oldmin = self.criteria.val_min
-        oldmax = self.criteria.val_max
-
-        oldspan = oldmax - oldmin
-        newspan = newmax - newmin
-
-        fraction = (self.value - oldmin) / oldspan
-        return newmin + (fraction * newspan)
-
     class Meta:
         unique_together = ('user', 'object_id', 'content_type', 'criteria')
         ordering = ['-pub_date']
 
 
 class ScoreForm(forms.ModelForm):
+    value = forms.ChoiceField(choices=get_choices())
     def __init__(self, *args, **kwargs):
         self.user = kwargs.pop('user', None)
         self.criteria = kwargs.pop('criteria', None)
@@ -212,18 +205,18 @@ class ScoreForm(forms.ModelForm):
         super(ScoreForm, self).__init__(*args, **kwargs)
 
     def min(self):
-        return self.criteria.val_min
+        return min(get_choice_values())
     def max(self):
-        return self.criteria.val_max
+        return max(get_choice_values())
     def name(self):
         return self.criteria.name
 
     def clean(self):
         cleaned_data = super(ScoreForm, self).clean()
-        value = cleaned_data['value'] 
-        vmin, vmax = self.criteria.val_min, self.criteria.val_max
-        if not vmin <= value <= vmax:
-            raise ValidationError("Score value not in Criteria's range! {} {} {}".format(vmin, value, vmax))
+        value = cleaned_data['value']
+        if value not in get_choice_values():
+            rng = ', '.join([str(val) for val in get_choice_values()])
+            raise ValidationError("Values should be in range {}".format(rng))
         if Score.objects.filter(user=self.user,
                                 object_id=self.obj_id,
                                 content_type=self.criteria.content_type,

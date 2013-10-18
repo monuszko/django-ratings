@@ -1,17 +1,10 @@
 from django.contrib import admin
 from django.contrib.contenttypes import generic
-from ratings.models import Criteria, Score
+from ratings.models import Criteria, Choice, Score
 
 
 class ScoreInline(generic.GenericTabularInline):
     model = Score
-
-
-class TestDummy1Admin(admin.ModelAdmin):
-    prepopulated_fields = {'slug': ('title',)}
-    fields = ('title', 'slug', 'pub_date', 'content', 'avg_score')
-    readonly_fields = ('avg_score', 'std_dev')
-    inlines = [ScoreInline,]
 
 
 class RatedObjectAdmin(admin.ModelAdmin):
@@ -20,5 +13,6 @@ class RatedObjectAdmin(admin.ModelAdmin):
 
 
 admin.site.register(Criteria)
+admin.site.register(Choice)
 admin.site.register(Score)
 
