@@ -12,7 +12,16 @@ class RatedObjectAdmin(admin.ModelAdmin):
     readonly_fields = ('avg_score', 'std_dev')
 
 
-admin.site.register(Criteria)
+class CriteriaAdmin(admin.ModelAdmin):
+    def queryset(self, request):
+        qs = self.model.objects.get_query_set()
+        ordering = self.ordering or ()
+        if ordering:
+            qs = qs.order_by(*ordering)
+        return qs
+
+
+admin.site.register(Criteria, CriteriaAdmin)
 admin.site.register(Choice)
 admin.site.register(Score)
 

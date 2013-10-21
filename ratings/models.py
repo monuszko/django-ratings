@@ -40,7 +40,7 @@ class RatedModel(models.Model):
 
     def get_crits(self):
         ct = self.get_ct()
-        return Criteria.objects.filter(content_type=ct)
+        return Criteria.public.filter(content_type=ct)
 
     def get_scores(self):
         ct = self.get_ct()
@@ -131,6 +131,14 @@ class RatedModel(models.Model):
         return sqrt(numerator / len(scores))
 
 
+class CriteriaManager(models.Manager):
+    use_for_related_fields = True
+    def get_query_set(self):
+        return super(CriteriaManager, self).get_query_set().filter(
+                publish=True,
+                ).exclude(date_max__lt=now).exclude(date_min__gt=now)
+
+
 class Criteria(models.Model):
     """Scores must evaluate certain criteria. Criteria
     are model-specific."""
@@ -141,6 +149,8 @@ class Criteria(models.Model):
     publish = models.BooleanField(default=True)
     date_min = models.DateTimeField(null=True, blank=True)
     date_max = models.DateTimeField(null=True, blank=True)
+    public = CriteriaManager()
+    objects = models.Manager()
 
     def __unicode__(self):
         return u"Criteria {0} of {1}".format(self.name,
@@ -214,7 +224,7 @@ class ScoreForm(forms.ModelForm):
     def clean(self):
         cleaned_data = super(ScoreForm, self).clean()
         value = cleaned_data['value']
-        if value not in get_choice_values():
+        if int(value) not in get_choice_values():
             rng = ', '.join([str(val) for val in get_choice_values()])
             raise ValidationError("Values should be in range {}".format(rng))
         if Score.objects.filter(user=self.user,
