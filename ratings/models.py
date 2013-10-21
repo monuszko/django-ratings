@@ -81,26 +81,18 @@ class RatedModel(models.Model):
         users = {}
         for score in scores:
             username = score.user.username
+            by_crit = {
+                    'name': score.criteria.name,
+                    'value': score.value,
+                    'comment': score.comment
+                    }
             if username not in users:
-                by_crit = [
-                        {
-                        'name': score.criteria.name,
-                        'value': score.value,
-                        'comment': score.comment
-                        }
-                    ]
                 users[username] = {
                         'pub_date': score.pub_date,
-                        'by_crit' : by_crit
+                        'by_crit' : [by_crit]
                         }
             else:
-                users[username]['by_crit'].append(
-                        {
-                            'name': score.criteria.name,
-                            'value': score.value,
-                            'comment': score.comment
-                        }
-                    )
+                users[username]['by_crit'].append(by_crit)
 
         for k, v in users.items():
             numbers = [crit['value'] for crit in v['by_crit']]
@@ -118,18 +110,6 @@ class RatedModel(models.Model):
         result.sort(key=itemgetter('pub_date'), reverse=True)
         return result
 
-    def std_dev(self):
-        """Returns average difference of Scores from the mean."""
-        # TODO: Make this User-based rather than Score-based
-        scores = self.get_scores()
-
-        avg_score = self.avg_score()
-        if not scores:
-            return 0
-        numerator = [pow((s - avg_score), 2) for s in scores]
-        numerator = sum(numerator)
-        return sqrt(numerator / len(scores))
-
 
 class CriteriaManager(models.Manager):
     use_for_related_fields = True
@@ -145,7 +125,7 @@ class Criteria(models.Model):
     content_type = models.ForeignKey(ContentType)
     name = models.CharField(max_length=250)
 
-    #folder = ForeignKey # relacja self np Null raczej M2M
+    # TODO: question folder using a "self" relation or M2M
     publish = models.BooleanField(default=True)
     date_min = models.DateTimeField(null=True, blank=True)
     date_max = models.DateTimeField(null=True, blank=True)
@@ -172,9 +152,11 @@ class Choice(models.Model):
         unique_together = ('value', 'label')
 
 
-def get_choices():
+def get_choices(please_select=None):
     choices = Choice.objects.all()
     choices = ((choice.value, choice.label) for choice in choices)
+    if please_select is not None:
+        choices = tuple([(666, please_select)] + list(choices))
     return choices
 
 
@@ -190,7 +172,6 @@ class Score(models.Model):
 
     user = models.ForeignKey(User, editable=False)
     criteria = models.ForeignKey(Criteria, editable=False)
-    # TODO: values in Score instead of Criteria ? Hmm.
     value = models.IntegerField()
     comment = models.CharField(blank=True, max_length=5000)
     pub_date = models.DateTimeField(default=now, editable=False) 
@@ -207,7 +188,7 @@ class Score(models.Model):
 
 
 class ScoreForm(forms.ModelForm):
-    value = forms.ChoiceField(choices=get_choices())
+    value = forms.ChoiceField(choices=get_choices(please_select='Please select:'))
     def __init__(self, *args, **kwargs):
         self.user = kwargs.pop('user', None)
         self.criteria = kwargs.pop('criteria', None)
@@ -224,14 +205,15 @@ class ScoreForm(forms.ModelForm):
     def clean(self):
         cleaned_data = super(ScoreForm, self).clean()
         value = cleaned_data['value']
-        if int(value) not in get_choice_values():
-            rng = ', '.join([str(val) for val in get_choice_values()])
-            raise ValidationError("Values should be in range {}".format(rng))
+        rng = [unicode(v) for v in get_choice_values()]
         if Score.objects.filter(user=self.user,
                                 object_id=self.obj_id,
                                 content_type=self.criteria.content_type,
                                 criteria=self.criteria).exists():
-            raise ValidationError("Only one Score per User per object!")
+            raise ValidationError("Only one score per user allowed.")
+        if value not in rng:
+            rng = ', '.join(rng)
+            raise ValidationError("Values should be in range {}".format(rng))
         return cleaned_data
 
     class Meta:

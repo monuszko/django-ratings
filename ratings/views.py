@@ -13,8 +13,8 @@ from django.core.exceptions import ValidationError
 def rate(request, ct_id, obj_id):
     ct = ContentType.objects.get_for_id(ct_id)
     crits = {crit.name: crit for crit in ct.criteria_set.all()}
+    sforms = []
     if request.method == "POST":
-        sforms = []
         for critname in crits:
             sforms.append(ScoreForm(
                 request.POST,
