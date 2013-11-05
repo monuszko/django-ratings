@@ -25,6 +25,7 @@ class RatedModel(models.Model):
         return ContentType.objects.get_for_model(self)
 
     def get_forms(self, user):
+        from ratings.forms import ScoreForm # Circular import ;[
         forms = []
         ct = self.get_ct()
         crits = self.get_ct().criteria_set.all()
@@ -152,18 +153,6 @@ class Choice(models.Model):
         unique_together = ('value', 'label')
 
 
-def get_choices(please_select=None):
-    choices = Choice.objects.all()
-    choices = ((choice.value, choice.label) for choice in choices)
-    if please_select is not None:
-        choices = tuple([(666, please_select)] + list(choices))
-    return choices
-
-
-def get_choice_values():
-    return [first for first, second in get_choices()]
-
-
 class Score(models.Model):
     """A generic score for any content object."""
     content_type = models.ForeignKey(ContentType, editable=False)
@@ -187,38 +176,4 @@ class Score(models.Model):
         ordering = ['-pub_date']
 
 
-class ScoreForm(forms.ModelForm):
-    value = forms.ChoiceField(choices=get_choices(please_select='Please select:'))
-    def __init__(self, *args, **kwargs):
-        self.user = kwargs.pop('user', None)
-        self.criteria = kwargs.pop('criteria', None)
-        self.obj_id = kwargs.pop('obj_id', None)
-        super(ScoreForm, self).__init__(*args, **kwargs)
-
-    def min(self):
-        return min(get_choice_values())
-    def max(self):
-        return max(get_choice_values())
-    def name(self):
-        return self.criteria.name
-
-    def clean(self):
-        cleaned_data = super(ScoreForm, self).clean()
-        value = cleaned_data['value']
-        rng = [unicode(v) for v in get_choice_values()]
-        if Score.objects.filter(user=self.user,
-                                object_id=self.obj_id,
-                                content_type=self.criteria.content_type,
-                                criteria=self.criteria).exists():
-            raise ValidationError("Only one score per user allowed.")
-        if value not in rng:
-            rng = ', '.join(rng)
-            raise ValidationError("Values should be in range {}".format(rng))
-        return cleaned_data
-
-    class Meta:
-        model = Score
-        widgets = {
-                'comment': forms.Textarea(attrs={'cols': 40, 'rows': 3}),
-                }
 

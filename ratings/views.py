@@ -6,7 +6,8 @@ from django.contrib.contenttypes.models import ContentType
 from django.shortcuts import render_to_response
 from django.template import RequestContext
 
-from ratings.models import Criteria, Score, ScoreForm
+from ratings.models import Criteria, Score
+from ratings.forms import ScoreForm
 from django.core.exceptions import ValidationError
 
 @login_required
