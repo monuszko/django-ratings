@@ -20,9 +20,6 @@ class RatedObject(models.Model):
     """Provides methods for calculating scores of a rated object.  Serves as
     an intermediary between the actual rated object and its Score objects."""
 
-    cached_avg = models.DecimalField(max_digits=2, decimal_places=1,
-            default='0.0', editable=False)
-
 #    def get_ct(self):
 #        return ContentType.objects.get_for_model(self)
 #
@@ -176,6 +173,4 @@ class Score(models.Model):
     class Meta:
         unique_together = ('user', 'object_id', 'content_type', 'criteria')
         ordering = ['-pub_date']
-
-
 
