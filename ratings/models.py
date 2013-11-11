@@ -6,7 +6,6 @@ from django.contrib.contenttypes.models  import ContentType
 from django.contrib.contenttypes import generic
 from django.utils.timezone import now
 from django.core.urlresolvers import reverse
-from django.core.exceptions import ValidationError
 from math import sqrt
 from operator import itemgetter
 
